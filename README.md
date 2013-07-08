@@ -1,0 +1,4 @@
+PySynRad
+========
+
+Synchrotron radiation generator
