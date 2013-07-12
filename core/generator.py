@@ -16,10 +16,10 @@ class Generator():
     def __init__(self):
         pass
 
-    def initialize(self, lattice):
+    def initialize(self, lattice_layers):
         self._stop = Settings()['generator']['stepping']['stop']
-        self._lattice = lattice
-        self._orbit = Orbit()
+        self._lattice_layers = lattice_layers
+        self._orbit = Orbit(lattice_layers)
         self._twiss = Twiss()
 
         # output
@@ -29,12 +29,13 @@ class Generator():
         self._output_twiss.open()
         
     def run(self):
-
         while self._orbit.valid(self._stop):
+            # get a list of the region in which the current step lies for each lattice layer
+            regions = [lattice.get(self._orbit.s0ip) for lattice in self._lattice_layers]
+
             # step the orbit and evolve the twiss parameter
-            curr_region = self._lattice.get(self._orbit.s0ip)
-            self._orbit.step(curr_region)
-            self._twiss.step(self._orbit, curr_region)
+            self._orbit.step(regions)
+            self._twiss.step(self._orbit, regions)
 
             # wite orbit and twiss parameter
             self._orbit.write(self._output_orbit)

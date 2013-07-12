@@ -4,18 +4,27 @@ from core.settings import Settings
 from core.output import Output
 
 
+class RegionCache():
+    """
+    Stores the data for the current step in a single region.
+    """
+    def __init__(self):
+        self.region = None
+        self.index = -1
+        self.gh = 0.0
+        self.gv = 0.0
+
+
 class Orbit():
     """
     The orbit
     """
-    def __init__(self):
+    def __init__(self, lattice_layers):
         # read settings
         settings = Settings()['generator']['stepping']
 
         # ideal central orbit
         self.s0ip = settings['start']  # ideal position (s, x, z)
-        self.x0ip = 0.0
-        self.z0ip = 0.0
         self.nominal_ds = settings['step_size'] # ideal (specified) step size
         self.ds = settings['step_size'] # current step size
         self.s0ip_prime = math.pi # ideal angle
@@ -26,65 +35,79 @@ class Orbit():
         self.dl = settings['step_size'] # step length along actual orbit
         self.xp = -settings['offset']['angle'] # angle deviation from ideal orbit
         self.yp = 0.0
-        self.xip = settings['offset']['position'] # actual orbit position
-        self.yip = 0.0
-        self.zip = -settings['start']
-        self.lip = settings['start']
         self.xip_prime = math.pi + settings['offset']['angle'] # actual orbit angles
         self.yip_prime = 0.0
 
-        # curvature at this step
+        # curvature at the current step
         self.gh = 0.0
         self.gv = 0.0
 
-    def step(self, region):
-        # step the ideal orbit first
+        # list of the current region and the index within the region.
+        # Used to check if a region or the index has changed.
+        self._region_cache = [RegionCache()]*len(lattice_layers)
+
+
+    def step(self, regions):
+        # check if the step is in vacuum
+        in_vacuum = True
+        for region in regions:
+            in_vacuum = in_vacuum and region.is_vacuum()
+
+        # update the curvature
+        self.gh = 0.0
+        self.gv = 0.0
+        for ireg in range(len(regions)):
+            region = regions[ireg]
+            region_c = self._region_cache[ireg]
+            index = region.index(self.s0ip)
+
+            if not region.is_vacuum():
+                if (region_c.region != region) or (region_c.index != index):
+                    region_c.region = region
+                    region_c.index = index
+
+                    # magnet displacement
+                    mag_x = self.x - region.offset_horz(index)
+                    mag_y = self.y - region.offset_vert(index)
+
+                    # magnet rotation around s
+                    m_s = math.sin(-region.angle(index))
+                    m_c = math.cos(-region.angle(index))
+                    x_tmp = mag_x
+                    mag_x = (m_c * x_tmp) - (m_s * mag_y)
+                    mag_y = (m_s * x_tmp) + (m_c * mag_y)
+
+                    # calculate curvature
+                    region_c.gh = region.k0(index)  + (region.k1(index) * mag_x) - (region.sk1(index) * mag_y)
+                    region_c.gv = region.sk0(index) + (region.k1(index) * mag_y) + (region.sk1(index) * mag_x)
+                else:
+                    # evolve curvature
+                    region_c.gh += self.dl * ((region.k1(index) * self.xp) - (region.sk1(index) * self.yp))
+                    region_c.gv += self.dl * ((region.k1(index) * self.yp) + (region.sk1(index) * self.xp))
+                    self.s0ip_prime -= self.ds * region.k0(index) * region.length(index)
+    
+                self.gh += region_c.gh
+                self.gv += region_c.gv
+
+        # step the ideal orbit
         self.s0ip += self.ds
-        self.x0ip += self.ds * math.sin(self.s0ip_prime)
-        self.z0ip += self.ds * math.cos(self.s0ip_prime)
 
         # calculate actual step length
-        if region.is_vacuum():
+        if in_vacuum:
             self.dl = self.ds / math.cos(self.xp)
         else:
             self.dl = self.ds * (1.0 + (self.gh * self.x))
 
         # calculate the actual orbit + deviation from ideal orbit
-        self.lip += self.dl
-        self.xip += self.dl * math.sin(self.xip_prime)
-        self.zip += self.dl * math.cos(self.xip_prime)
-        self.yip += self.dl * self.yip_prime
         self.x += self.dl * self.xp
         self.y += self.dl * self.yip_prime
+        self.xip_prime += self.gh * self.dl
+        self.yip_prime += self.gv * self.dl
 
-        # step the angles
-        if not region.is_vacuum():
-            self.xip_prime += self.gh * self.dl
-            self.yip_prime += self.gv * self.dl
-            self.gh += self.xp * self.dl * region.k1_horz(self.s0ip)
-            self.gv += self.yp * self.dl * region.k1_vert(self.s0ip)
-
-            self.s0ip_prime += self.ds * region.k0_horz(self.s0ip)
+        if not in_vacuum:
             self.xp = self.s0ip_prime - self.xip_prime
             self.yp = self.yip_prime
 
-        # adjust ds
-        #if st.ds < 0.0 and ((step.region().region_smin - st.s0ip) > st.ds):
-        #    new_ds = step.region().region_smin - st.s0ip - 0.000001
-        #    if math.fabs(new_ds) >= 0.000000001:
-        #        st.ds = new_ds
-        #elif st.ds > 0.0 and ((step.region().region_smax - st.s0ip) < st.ds):
-        #    new_ds = step.region().region_smax - st.s0ip + 0.000001
-        #    if math.fabs(new_ds) >= 0.000000001:
-        #        st.ds = new_ds
-
-        # update the curvature
-        if region.is_vacuum():
-            self.gh = 0.0
-            self.gv = 0.0
-        else:
-            self.gh = region.k1_horz(self.s0ip) * self.x + region.k0_horz(self.s0ip)
-            self.gv = region.k1_vert(self.s0ip) * self.y + region.k0_vert(self.s0ip)
 
     def valid(self, stop):
         # return true if this step is valid and not the last step
@@ -92,11 +115,4 @@ class Orbit():
                (self.ds > 0.0 and self.s0ip <= stop)
 
     def write(self, output):
-        output.write(["%f:%e:%e:%e:%e:%e:%e:%e:%e\n"%(self.s0ip,
-                                                      self.x0ip,
-                                                      self.z0ip,
-                                                      self.x, self.y,
-                                                      self.lip,
-                                                      self.xip,
-                                                      self.zip,
-                                                      self.yip)])
+        output.write(["%f:%e:%e\n"%(self.s0ip, self.x, self.y,)])

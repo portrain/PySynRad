@@ -13,11 +13,9 @@ class Output(object):
         self._file = None
         self._calls = 0
 
-
     def open(self):
         if self._enabled:
             self._file = open(self._filename, "w")
-
 
     def write(self, data=[]):
         if self._file != None:
@@ -26,8 +24,6 @@ class Output(object):
                 for line in data:
                     self._file.write(line)
 
-
     def close(self):
         if self._file != None:
             self._file.close()
-

@@ -33,7 +33,7 @@ class Twiss():
         vsize = math.sqrt(vsize_sq)
         return hsize, vsize, ch, cv
 
-    def step(self, orbit, region):
+    def step(self, orbit, regions):
         # propagate zeta and eta
         self.zetah += self.zetahp * orbit.dl
         self.zetav += self.zetavp * orbit.dl
@@ -43,12 +43,17 @@ class Twiss():
         # propagate the derivates
         kh = 0.0
         kv = 0.0
-        if region.is_vacuum():
-            kh = 0.0
-            kv = 0.0
-        else:
-            kh = (-1.0 * region.k1_horz(orbit.s0ip)) - (orbit.gh**2)
-            kv = (-1.0 * region.k1_vert(orbit.s0ip)) - (orbit.gv**2)
+        in_vacuum = True
+        for region in regions:
+            if not region.is_vacuum():
+                index = region.index(orbit.s0ip)
+                kh += region.k1(index)
+                kv -= region.k1(index)
+                if in_vacuum:
+                    in_vacuum = False
+        if not in_vacuum:
+            kh = (-1.0 * kh) - (orbit.gh**2)
+            kv = (-1.0 * kv) - (orbit.gv**2)
 
         zetahpp = (kh * self.zetah) + (1.0/(self.zetah**3))
         self.zetahp += zetahpp * orbit.dl
@@ -56,7 +61,7 @@ class Twiss():
         self.zetavp += zetavpp * orbit.dl
         etahpp = (kh * self.etah) + orbit.gh
         self.etahp += etahpp * orbit.dl
-        etavpp = (kv * self.etav) + orbit.gv
+        etavpp = (kv * self.etav) - orbit.gv
         self.etavp += etavpp * orbit.dl
 
     def write(self, output, s):

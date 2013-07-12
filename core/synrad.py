@@ -1,6 +1,7 @@
 
-import logging.config
+import os
 import argparse
+import logging.config
 from core import settings
 from core.lattice import Lattice
 from core.generator import Generator
@@ -23,14 +24,18 @@ def main():
 
 
     #----------------------------------------------------------
-    # create and load the lattice
-    lattice = Lattice()
-    lattice.load()
-    lattice.write_regions()
+    # create and load the lattice layers
+    lattice_layers = []
+    for lattice_file in settings.Settings()['machine']['lattice']:
+        lattice = Lattice()
+        lattice.load(os.path.join(settings.Settings()['application']['conf_path'],
+                                  lattice_file))
+        lattice.write_regions()
+        lattice_layers.append(lattice)
 
     # create a generator, initialise it and run the simulation
     gen = Generator()
-    gen.initialize(lattice)
+    gen.initialize(lattice_layers)
     gen.run()
     gen.terminate()
 
