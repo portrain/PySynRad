@@ -1,8 +1,6 @@
 import os
-import sys
 import json
 
-from string import Template
 
 class __SettingsSingleton(object):
     d = {}
@@ -10,7 +8,6 @@ class __SettingsSingleton(object):
 
 def Settings():
     return __SettingsSingleton().d
-
 
 def read(conf_path):
     # read the settings file and store the result into the dictionary

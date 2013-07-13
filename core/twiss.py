@@ -1,72 +1,59 @@
-
 import math
-from core.settings import Settings
-from core.output import Output
-
+from app.settings import Settings
+from model.beam import Beam
 
 class Twiss():
     """
     The twiss parameters
     """
     def __init__(self):
-        settings = Settings()['generator']['twiss_propagation']
-        self.alphah = settings['alpha']['horizontal']
-        self.alphav = settings['alpha']['vertical']
-        self.zetah = math.sqrt(settings['beta']['horizontal'])
-        self.zetav = math.sqrt(settings['beta']['vertical'])
-        self.zetahp = self.alphah/self.zetah
-        self.zetavp = self.alphav/self.zetav
-        self.etah = settings['eta']['horizontal']
-        self.etav = settings['eta']['vertical']
-        self.etahp = settings['eta_derivative']['horizontal']
-        self.etavp = settings['eta_derivative']['vertical']
-        self.emith = settings['emittance']['horizontal']
-        self.emitv = settings['emittance']['vertical']
-        self.delta_e = settings['delta_e']
+        pass
 
-    def beam_size(self):
-        hsize_sq = self.emith * self.zetah**2 + self.etah**2 * self.delta_e**2
-        vsize_sq = self.emitv * self.zetav**2 + self.etav**2 * self.delta_e**2
-        ch = (self.emith * self.zetah * self.zetahp + self.etah * self.etahp * self.delta_e**2)/hsize_sq;
-        cv = (self.emitv * self.zetav * self.zetavp + self.etav * self.etavp * self.delta_e**2)/vsize_sq;
-        hsize = math.sqrt(hsize_sq)
-        vsize = math.sqrt(vsize_sq)
-        return hsize, vsize, ch, cv
 
-    def step(self, orbit, regions):
+    def initialize(self, lattice):
+        self._lattice = lattice
+        settings = Settings()['generator']['twiss']
+        self._delta_e = settings['delta_e']
+
+
+    def create_beam(self):
+        settings = Settings()['generator']['twiss']
+        return Beam(alphah=settings['alpha']['horizontal'],
+                    alphav=settings['alpha']['vertical'],
+                    zetah=math.sqrt(settings['beta']['horizontal']),
+                    zetav=math.sqrt(settings['beta']['vertical']),
+                    etah=settings['eta']['horizontal'],
+                    etav=settings['eta']['vertical'],
+                    etahp=settings['eta_derivative']['horizontal'],
+                    etavp=settings['eta_derivative']['vertical'],
+                    emith=settings['emittance']['horizontal'],
+                    emitv=settings['emittance']['vertical'])
+
+
+    def evolve(self, step, beam):
         # propagate zeta and eta
-        self.zetah += self.zetahp * orbit.dl
-        self.zetav += self.zetavp * orbit.dl
-        self.etah += self.etahp * orbit.dl
-        self.etav += self.etavp * orbit.dl
+        beam.zetah += beam.zetahp * step.dl
+        beam.zetav += beam.zetavp * step.dl
+        beam.etah += beam.etahp * step.dl
+        beam.etav += beam.etavp * step.dl
 
-        # propagate the derivates
+        # propagate the derivatives
         kh = 0.0
         kv = 0.0
-        in_vacuum = True
-        for region in regions:
+        for region in self._lattice.get(step.s0ip):
             if not region.is_vacuum():
-                index = region.index(orbit.s0ip)
-                kh += region.k1(index)
-                kv -= region.k1(index)
-                if in_vacuum:
-                    in_vacuum = False
-        if not in_vacuum:
-            kh = (-1.0 * kh) - (orbit.gh**2)
-            kv = (-1.0 * kv) - (orbit.gv**2)
+                idx = region.index(step.s0ip)
+                kh += region.k1(idx)
+                kv -= region.k1(idx)
+        if not step.in_vacuum:
+            kh = (-1.0 * kh) - (step.gh**2)
+            kv = (-1.0 * kv) - (step.gv**2)
 
-        zetahpp = (kh * self.zetah) + (1.0/(self.zetah**3))
-        self.zetahp += zetahpp * orbit.dl
-        zetavpp = (kv * self.zetav) + (1.0/(self.zetav**3))
-        self.zetavp += zetavpp * orbit.dl
-        etahpp = (kh * self.etah) + orbit.gh
-        self.etahp += etahpp * orbit.dl
-        etavpp = (kv * self.etav) - orbit.gv
-        self.etavp += etavpp * orbit.dl
-
-    def write(self, output, s):
-        output.write(["%f:%e:%e:%e:%e:%e:%e\n"%(s,
-                                                self.zetahp*self.zetah,
-                                                self.zetavp*self.zetav,
-                                                self.zetah, self.zetav,
-                                                self.etah, self.etav)])
+        zetahpp = (kh * beam.zetah) + (1.0/(beam.zetah**3))
+        beam.zetahp += zetahpp * step.dl
+        zetavpp = (kv * beam.zetav) + (1.0/(beam.zetav**3))
+        beam.zetavp += zetavpp * step.dl
+        etahpp = (kh * beam.etah) + step.gh
+        beam.etahp += etahpp * step.dl
+        etavpp = (kv * beam.etav) - step.gv
+        beam.etavp += etavpp * step.dl

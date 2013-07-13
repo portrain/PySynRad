@@ -1,16 +1,18 @@
 import math
 import bisect
 
-class Region():
+
+class Region(object):
     """
-    A region contains either vacuum or a list of hard edge modeled
-    lattice parameters.
+    A region represents a magnet or the vacuum between two magnets. A magnet
+    consists of a list of hard edge modeled lattice parameters.
     """
     def __init__(self):
         self._s = []
         self._params = []
         self._smin = 0.0
         self._smax = 0.0
+
 
     def add(self, s, l, k0=0.0, k1=0.0, sk0=0.0, sk1=0.0,
             dh=0.0, dv=0.0, angle=0.0, vacuum=False):
@@ -26,6 +28,7 @@ class Region():
             idx = bisect.bisect_left(self._s, s)
             self._s.insert(idx, s)
             self._params.insert(idx, [k0, k1, sk0, sk1, dh, dv, angle, l])
+
 
     def is_vacuum(self):
         return len(self._params) == 0
@@ -65,6 +68,7 @@ class Region():
 
     def length(self, index):
         return math.fabs(self._return_param(index, 7, 0.0))
+
 
     def _return_param(self, index, param_index, default):
         if len(self._params) > 0:

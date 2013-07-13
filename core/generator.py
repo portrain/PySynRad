@@ -1,10 +1,13 @@
-
+import os
 import math
 import logging.config
-from core.settings import Settings
-from core.output import Output
+from progressbar import ProgressBar, Bar, Percentage, ETA
+from app.settings import Settings
+from app.output import Output
+from core.lattice import Lattice
 from core.orbit import Orbit
 from core.twiss import Twiss
+from core.photons import Photons
 
 logger = logging.getLogger(__name__)
 
@@ -14,32 +17,75 @@ class Generator():
     The main Synchrotron Radiation generator.
     """
     def __init__(self):
-        pass
-
-    def initialize(self, lattice_layers):
-        self._stop = Settings()['generator']['stepping']['stop']
-        self._lattice_layers = lattice_layers
-        self._orbit = Orbit(lattice_layers)
+        self._lattice = Lattice()
+        self._orbit = Orbit()
         self._twiss = Twiss()
+        self._photons = Photons()
+
+
+    def initialize(self):
+        # get settings
+        self._start = Settings()['generator']['orbit']['start']
+        self._stop = Settings()['generator']['orbit']['stop']
+
+        # load the lattice
+        self._lattice.load([os.path.join(Settings()['application']['conf_path'],
+                            fname) for fname in Settings()['machine']['lattice']])
+
+        # initialise the sub-systems
+        self._orbit.initialize(self._lattice)
+        self._twiss.initialize(self._lattice)
+        self._photons.initialize()
+        
+        # initialise step and beam
+        self._step = self._orbit.create_step(self._lattice)
+        self._beam = self._twiss.create_beam()
 
         # output
+        self._output_lattice = Output('regions')
         self._output_orbit = Output('orbit_parameters')
         self._output_twiss = Output('twiss_parameters')
+        self._output_lattice.open()
         self._output_orbit.open()
         self._output_twiss.open()
-        
+
+
     def run(self):
-        while self._orbit.valid(self._stop):
-            # get a list of the region in which the current step lies for each lattice layer
-            regions = [lattice.get(self._orbit.s0ip) for lattice in self._lattice_layers]
+        # progress bar
+        progress_ds = 0.0
+        progress = ProgressBar(widgets=['Stepping: ', Percentage(),
+                                        ' ', Bar(), ' ', ETA()],
+                               maxval=math.fabs(self._stop - self._start)).start()
 
-            # step the orbit and evolve the twiss parameter
-            self._orbit.step(regions)
-            self._twiss.step(self._orbit, regions)
+        # first ideal orbit step
+        self._orbit.step_ideal_orbit(self._step)
 
-            # wite orbit and twiss parameter
-            self._orbit.write(self._output_orbit)
-            self._twiss.write(self._output_twiss, self._orbit.s0ip)
+        # step through the lattice until the stop point is reached
+        while self._orbit.valid(self._step):
+
+            # step the actual orbit and evolve the twiss parameters
+            self._orbit.step_actual_orbit(self._step)
+            self._twiss.evolve(self._step, self._beam)
+
+            # integrate over the beam profile and create the photons
+            sr_photons = self._photons.create()
+
+            # write orbit and twiss parameters to file
+            self._step.write(self._output_orbit)
+            self._beam.write(self._step, self._output_twiss)
+
+            # write the photons into an hepevt file
+            # self._hepevt.write(sr_photons)
+
+            # update progress bar
+            progress_ds += math.fabs(self._step.ds)
+            progress.update(progress_ds)
+
+            # next ideal orbit step
+            self._orbit.step_ideal_orbit(self._step)
+
+        progress.finish()
+
 
     def terminate(self):
         self._output_orbit.close()

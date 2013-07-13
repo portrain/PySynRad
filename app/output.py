@@ -1,5 +1,5 @@
 
-from core.settings import Settings
+from app.settings import Settings
 
 class Output(object):
     """
@@ -8,7 +8,7 @@ class Output(object):
     def __init__(self, name):
         settings = Settings()['application']['output'][name]
         self._enabled = settings['enabled']
-        self._fraction = int(1.0/settings['fraction'])
+        self._nth_step = int(settings['nth_step'])
         self._filename = settings['filename']
         self._file = None
         self._calls = 0
@@ -20,7 +20,7 @@ class Output(object):
     def write(self, data=[]):
         if self._file != None:
             self._calls += 1
-            if self._calls%self._fraction == 0:
+            if self._calls%self._nth_step == 0:
                 for line in data:
                     self._file.write(line)
 
