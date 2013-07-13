@@ -38,7 +38,7 @@ class Generator():
         self._photons.initialize()
         
         # initialise step and beam
-        self._step = self._orbit.create_step(self._lattice)
+        self._step = self._orbit.create_step()
         self._beam = self._twiss.create_beam()
 
         # output
@@ -68,7 +68,7 @@ class Generator():
             self._twiss.evolve(self._step, self._beam)
 
             # integrate over the beam profile and create the photons
-            sr_photons = self._photons.create()
+            sr_photons = self._photons.create(self._step, self._beam)
 
             # write orbit and twiss parameters to file
             self._step.write(self._output_orbit)

@@ -32,21 +32,17 @@ class Photons():
         self._dl = 0.0
 
 
-    def create(self):
-
+    def create(self, step, beam):
         # accumulate steps only inside magnets
-        #if (not orbit.in_vacuum) and (not orbit.at_border):
-        #    self._dl += orbit.dl
-        #    self._call_count += 1
+        if not step.in_vacuum:
+            self._dl += orbit.dl
+            self._call_count += 1
 
         # radiate photons if the n-th step is reached
-        # or the current orbit step is on a magnet to vacuum border.
-        #if (self._call_count >= self._nth_step) or \
-        #   (self._call_count > 0 and orbit.at_border):
+        # or the current step is on a magnet to vacuum boundary.
+        if (self._call_count >= self._nth_step) or \
+           (self._call_count > 0 and step.on_boundary):
 
 
-        #    self._dl = 0.0
-        #    self._call_count = 0
-        pass
-
-        
+            self._dl = 0.0
+            self._call_count = 0

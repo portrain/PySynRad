@@ -18,9 +18,9 @@ class Orbit():
         self._nominal_ds = settings['step_size']
 
 
-    def create_step(self, lattice):
+    def create_step(self):
         settings = Settings()['generator']['orbit']
-        return Step(lattice,
+        return Step(self._lattice,
                     s0ip=settings['start'],
                     ds=settings['step_size'],
                     s0ip_prime=math.pi,
@@ -106,12 +106,16 @@ class Orbit():
                     mag_y = (m_s * x_tmp) + (m_c * mag_y)
 
                     # calculate curvature
-                    curv.gh = region.k0(idx)  + (region.k1(idx) * mag_x) - (region.sk1(idx) * mag_y)
-                    curv.gv = region.sk0(idx) + (region.k1(idx) * mag_y) + (region.sk1(idx) * mag_x)
+                    curv.gh = region.k0(idx)  + (region.k1(idx) * mag_x) - \
+                              (region.sk1(idx) * mag_y)
+                    curv.gv = region.sk0(idx) + (region.k1(idx) * mag_y) + \
+                              (region.sk1(idx) * mag_x)
                 else:
                     # evolve curvature
-                    curv.gh += step.dl * ((region.k1(idx) * step.xp) - (region.sk1(idx) * step.yp))
-                    curv.gv += step.dl * ((region.k1(idx) * step.yp) + (region.sk1(idx) * step.xp))
+                    curv.gh += step.dl * ((region.k1(idx) * step.xp) - \
+                                          (region.sk1(idx) * step.yp))
+                    curv.gv += step.dl * ((region.k1(idx) * step.yp) + \
+                                          (region.sk1(idx) * step.xp))
                     step.s0ip_prime -= step.ds * region.k0(idx) * region.length(idx)
     
                 step.gh += curv.gh
@@ -124,7 +128,7 @@ class Orbit():
         else:
             step.dl = step.ds * (1.0 + (step.gh * step.x))
 
-        # calculate the actual orbit + deviation from ideal orbit
+        # calculate the deviation from the ideal orbit
         step.x += step.dl * step.xp
         step.y += step.dl * step.yip_prime
         step.xip_prime += step.gh * step.dl
