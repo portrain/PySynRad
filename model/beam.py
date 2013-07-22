@@ -1,11 +1,12 @@
-
+import math
 
 class Beam(object):
     """
     Beam
     """
     def __init__(self, alphah=0.0, alphav=0.0, zetah=0.0, zetav=0.0,
-                 etah=0.0, etav=0.0, etahp=0.0, etavp=0.0, emith=0.0, emitv=0.0):
+                 etah=0.0, etav=0.0, etahp=0.0, etavp=0.0,
+                 emith=0.0, emitv=0.0, delta_e=0.0):
         self.alphah = alphah # twiss parameters
         self.alphav = alphav
         self.zetah = zetah
@@ -18,6 +19,7 @@ class Beam(object):
         self.etavp = etavp
         self.emith = emith # emittance
         self.emitv = emitv
+        self.delta_e = delta_e
 
 
     def size(self):

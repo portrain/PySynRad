@@ -74,7 +74,7 @@ class Layer(object):
 
 
     def write(self, output):
-        output_text = ["[%s]"%self._filename]
+        output_text = ["[%s]\n"%self._filename]
         for region in self._regions:
             reg_type = "MAG"
             if region.is_vacuum():

@@ -35,7 +35,7 @@ class Generator():
         # initialise the sub-systems
         self._orbit.initialize(self._lattice)
         self._twiss.initialize(self._lattice)
-        self._photons.initialize()
+        self._photons.initialize(self._lattice)
         
         # initialise step and beam
         self._step = self._orbit.create_step()
@@ -45,12 +45,17 @@ class Generator():
         self._output_lattice = Output('regions')
         self._output_orbit = Output('orbit_parameters')
         self._output_twiss = Output('twiss_parameters')
+        self._output_num_photons = Output('radiated_number_photons')
         self._output_lattice.open()
         self._output_orbit.open()
         self._output_twiss.open()
+        self._output_num_photons.open()
 
 
     def run(self):
+        # write lattice
+        self._lattice.write(self._output_lattice)
+
         # progress bar
         progress_ds = 0.0
         progress = ProgressBar(widgets=['Stepping: ', Percentage(),
@@ -68,7 +73,8 @@ class Generator():
             self._twiss.evolve(self._step, self._beam)
 
             # integrate over the beam profile and create the photons
-            sr_photons = self._photons.create(self._step, self._beam)
+            sr_photons = self._photons.create(self._step, self._beam,
+                                              self._output_num_photons)
 
             # write orbit and twiss parameters to file
             self._step.write(self._output_orbit)
@@ -88,5 +94,7 @@ class Generator():
 
 
     def terminate(self):
+        self._output_lattice.close()
         self._output_orbit.close()
         self._output_twiss.close()
+        self._output_num_photons.close()

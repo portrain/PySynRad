@@ -13,7 +13,6 @@ class Twiss():
     def initialize(self, lattice):
         self._lattice = lattice
         settings = Settings()['generator']['twiss']
-        self._delta_e = settings['delta_e']
 
 
     def create_beam(self):
@@ -27,7 +26,8 @@ class Twiss():
                     etahp=settings['eta_derivative']['horizontal'],
                     etavp=settings['eta_derivative']['vertical'],
                     emith=settings['emittance']['horizontal'],
-                    emitv=settings['emittance']['vertical'])
+                    emitv=settings['emittance']['vertical'],
+                    delta_e=settings['delta_e'])
 
 
     def evolve(self, step, beam):
