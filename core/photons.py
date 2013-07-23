@@ -1,6 +1,7 @@
 
 import math
 from app.settings import Settings
+from app.hepevt import Hepevt
 from core.spectrum import Spectrum
 
 class Photons():
@@ -22,6 +23,7 @@ class Photons():
         self._sigma_v = settings['sigma']['vertical']
         self._stepsize_h = 2.0 * self._sigma_h / settings['steps']['horizontal']
         self._stepsize_v = 2.0 * self._sigma_v / settings['steps']['vertical']
+        self._crossing_angle = Settings()['machine']['crossing_angle']
 
         # create synchrotron radiation power spectrum PDF
         self._spectrum = Spectrum()
@@ -48,7 +50,7 @@ class Photons():
                               self._hbar * (self._gamma**3)
 
 
-    def create(self, step, beam, output):
+    def create(self, step, beam, output, hepevt):
         if not self._enabled:
             return
 
@@ -63,12 +65,12 @@ class Photons():
            (self._call_count > 0 and step.on_boundary):
             self._integrate_beam(math.fabs(self._dl),
                                  step, beam,
-                                 output)
+                                 output, hepevt)
             self._dl = 0.0
             self._call_count = 0
 
 
-    def _integrate_beam(self, dl, step, beam, output):
+    def _integrate_beam(self, dl, step, beam, output, hepevt):
         """
         integrate over the beam profile
         """
@@ -88,6 +90,9 @@ class Photons():
         ystep = self._stepsize_v * vsize
         xs_max = self._sigma_h * hsize
         ys_max = self._sigma_v * vsize
+
+        cx_s = math.sin(self._crossing_angle)
+        cx_c = math.cos(self._crossing_angle)
 
         xs = -1.0 * self._sigma_h * hsize + 0.5*xstep
         while xs <= xs_max:
@@ -121,10 +126,23 @@ class Photons():
                 # get the energies for all radiated photons
                 if num_photons > 0:
                     crit_e = self._crit_e_factor * rho_inv
-                    #energies = self._spectrum.random(crit_e, num_photons,
-                    #                                 self._energy_cutoff)
+                    energies = self._spectrum.random(crit_e, num_photons,
+                                                     self._energy_cutoff)
 
-                    #total_number_photons_cut += len(energies)
+                    # write photons into the event file
+                    if len(energies) > 0:
+                        vx = -cx_s*step.s0ip + cx_c*(step.x+xs)
+                        vy = step.y+ys
+                        vz = -cx_c*step.s0ip - cx_s*(step.x+xs)
+                        px = cx_s*(step.s0ip-step.ds) + cx_c*step.xp*step.ds
+                        py = step.yp*step.ds
+                        pz = cx_c*(step.s0ip-step.ds) - cx_s*step.xp*step.ds
+                        norm = 1.0/math.sqrt(px**2 + py**2 + pz**2)
+                        evt = hepevt.event(vx, vy, vz)
+                        for e in energies:
+                            evt.add(px*e*norm, py*e*norm, pz*e*norm)
+                        evt.commit()
+                    total_number_photons_cut += len(energies)
 
                 ys += ystep
             xs += xstep

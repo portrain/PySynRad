@@ -82,6 +82,7 @@ class Spectrum():
                               np.interp(rnd,
                                         [self._lut_x[left], self._lut_x[right]],
                                         [self._lut_y[left], self._lut_y[right]]))
+
         return result
 
 

@@ -4,6 +4,7 @@ import logging.config
 from progressbar import ProgressBar, Bar, Percentage, ETA
 from app.settings import Settings
 from app.output import Output
+from app.hepevt import Hepevt
 from core.lattice import Lattice
 from core.orbit import Orbit
 from core.twiss import Twiss
@@ -27,6 +28,7 @@ class Generator():
         # get settings
         self._start = Settings()['generator']['orbit']['start']
         self._stop = Settings()['generator']['orbit']['stop']
+        self._show_progress = Settings()['application']['progress_bar']
 
         # load the lattice
         self._lattice.load([os.path.join(Settings()['application']['conf_path'],
@@ -51,16 +53,22 @@ class Generator():
         self._output_twiss.open()
         self._output_num_photons.open()
 
+        # hepevt output
+        self._hepevt = Hepevt()
+        self._hepevt.open()
+
+
 
     def run(self):
         # write lattice
         self._lattice.write(self._output_lattice)
 
         # progress bar
-        progress_ds = 0.0
-        progress = ProgressBar(widgets=['Stepping: ', Percentage(),
-                                        ' ', Bar(), ' ', ETA()],
-                               maxval=math.fabs(self._stop - self._start)).start()
+        if self._show_progress:
+            progress_ds = 0.0
+            progress = ProgressBar(widgets=['Stepping: ', Percentage(),
+                                            ' ', Bar(), ' ', ETA()],
+                                   maxval=math.fabs(self._stop - self._start)).start()
 
         # first ideal orbit step
         self._orbit.step_ideal_orbit(self._step)
@@ -73,24 +81,24 @@ class Generator():
             self._twiss.evolve(self._step, self._beam)
 
             # integrate over the beam profile and create the photons
-            sr_photons = self._photons.create(self._step, self._beam,
-                                              self._output_num_photons)
+            self._photons.create(self._step, self._beam,
+                                 self._output_num_photons,
+                                 self._hepevt)
 
             # write orbit and twiss parameters to file
             self._step.write(self._output_orbit)
             self._beam.write(self._step, self._output_twiss)
 
-            # write the photons into an hepevt file
-            # self._hepevt.write(sr_photons)
-
             # update progress bar
-            progress_ds += math.fabs(self._step.ds)
-            progress.update(progress_ds)
+            if self._show_progress:
+                progress_ds += math.fabs(self._step.ds)
+                progress.update(progress_ds)
 
             # next ideal orbit step
             self._orbit.step_ideal_orbit(self._step)
 
-        progress.finish()
+        if self._show_progress:
+            progress.finish()
 
 
     def terminate(self):
@@ -98,3 +106,4 @@ class Generator():
         self._output_orbit.close()
         self._output_twiss.close()
         self._output_num_photons.close()
+        self._hepevt.close()
