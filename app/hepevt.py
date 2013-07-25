@@ -49,12 +49,12 @@ class Hepevt():
         self._enabled = settings['enabled']
         self._filename = settings['filename']
         self._file = None
-        self._evt_count = 0
 
 
     def open(self):
         if self._enabled:
             self._file = open(self._filename, "w")
+            self._evt_count = 0
 
 
     def event(self, x, y, z):
@@ -66,7 +66,6 @@ class Hepevt():
             return
 
         # header
-        pos = event.position()
         self._file.write("%i"%event.count() +\
                          " %.6e %.6e %.6e\n"%(event.position()))
 

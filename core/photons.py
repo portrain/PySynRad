@@ -24,6 +24,14 @@ class Photons():
         self._stepsize_h = 2.0 * self._sigma_h / settings['steps']['horizontal']
         self._stepsize_v = 2.0 * self._sigma_v / settings['steps']['vertical']
         self._crossing_angle = Settings()['machine']['crossing_angle']
+        
+        self._region_enabled = settings['region']['enabled']
+        if settings['region']['range'][0] < settings['region']['range'][1]:
+            self._region_left = settings['region']['range'][0]
+            self._region_right = settings['region']['range'][1]
+        else:
+            self._region_left = settings['region']['range'][1]
+            self._region_right = settings['region']['range'][0]
 
         # create synchrotron radiation power spectrum PDF
         self._spectrum = Spectrum()
@@ -54,15 +62,24 @@ class Photons():
         if not self._enabled:
             return
 
-        # accumulate steps only inside magnets
-        if not step.in_vacuum:
+        # accumulate steps only inside magnets and, if enabled,
+        # inside the region
+        if (not step.in_vacuum) and \
+           (not self._region_enabled or \
+            (self._region_enabled and \
+             step.s0ip >= self._region_left and step.s0ip <= self._region_right)):
             self._dl += step.dl
             self._call_count += 1
 
-        # radiate photons if the n-th step is reached
-        # or the current step is on a magnet to vacuum boundary.
+        # radiate photons if the n-th step is reached,
+        # the current step is on a magnet to vacuum boundary,
+        # or the region is enabled and the step leaves the region
         if (self._call_count >= self._nth_step) or \
-           (self._call_count > 0 and step.on_boundary):
+           (self._call_count > 0 and step.on_boundary) or \
+           (self._region_enabled and self._call_count > 0 and step.ds < 0.0 and \
+            step.s0ip <= self._region_left) or \
+           (self._region_enabled and self._call_count > 0 and step.ds > 0.0 and \
+            step.s0ip >= self._region_right):
             self._integrate_beam(math.fabs(self._dl),
                                  step, beam,
                                  output, hepevt)

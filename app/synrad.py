@@ -12,11 +12,13 @@ def main():
                                      description='Synchrotron radiation generator')
     parser.add_argument('<config_file>', action='store',
                         help='Path to configuration file')
+    parser.add_argument('-t', '--template', action='store',
+                        help='A JSON string with template arguments for the conf')
+
     args = vars(parser.parse_args())
-    conf_path = args['<config_file>']
 
     # load the main configuration file
-    settings.read(conf_path)
+    settings.read(args['<config_file>'], args['template'])
 
     # set the global logging settings and level
     logging.config.dictConfig(settings.Settings()['application']['logging'])
