@@ -87,6 +87,10 @@ class Photons():
             self._call_count = 0
 
 
+    def write_spectrum(self, output):
+        self._spectrum.write(output)
+
+
     def _integrate_beam(self, dl, step, beam, output, hepevt):
         """
         integrate over the beam profile

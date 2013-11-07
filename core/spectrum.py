@@ -86,6 +86,11 @@ class Spectrum():
         return result
 
 
+    def write(self, output):
+        output.write([str(self._resolution)+"\n"])
+        output.write(["%f\n"%y for y in self._lut_y])
+
+
     def _k53_integral(self, x):
         """The integral from x to infinity over K_5/3"""
         return integrate.quad(self._k53, x, np.inf)[0]

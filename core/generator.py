@@ -48,10 +48,12 @@ class Generator():
         self._output_orbit = Output('orbit_parameters')
         self._output_twiss = Output('twiss_parameters')
         self._output_num_photons = Output('radiated_number_photons')
+        self._output_spectrum = Output('spectrum_lut')
         self._output_lattice.open()
         self._output_orbit.open()
         self._output_twiss.open()
         self._output_num_photons.open()
+        self._output_spectrum.open()
 
         # hepevt output
         self._hepevt = Hepevt()
@@ -60,8 +62,9 @@ class Generator():
 
 
     def run(self):
-        # write lattice
+        # write lattice and spectrum
         self._lattice.write(self._output_lattice)
+        self._photons.write_spectrum(self._output_spectrum)
 
         # progress bar
         if self._show_progress:
@@ -106,4 +109,5 @@ class Generator():
         self._output_orbit.close()
         self._output_twiss.close()
         self._output_num_photons.close()
+        self._output_spectrum.close()
         self._hepevt.close()

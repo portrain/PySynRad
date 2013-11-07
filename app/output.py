@@ -8,7 +8,10 @@ class Output(object):
     def __init__(self, name):
         settings = Settings()['application']['output'][name]
         self._enabled = settings['enabled']
-        self._nth_step = int(settings['nth_step'])
+        if 'nth_step' in settings:
+            self._nth_step = int(settings['nth_step'])
+        else:
+            self._nth_step = 1
         self._filename = settings['filename']
         self._file = None
         self._calls = 0
