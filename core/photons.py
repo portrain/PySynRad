@@ -16,6 +16,7 @@ class Photons():
         # read settings
         settings = Settings()['generator']['photons']
         self._enabled = settings['enabled']
+        self._full_events = settings['full_events']
         self._nth_step = settings['nth_step']
         self._time = settings['time']
         self._energy_cutoff = settings['energy_cutoff']
@@ -144,26 +145,38 @@ class Photons():
                 num_photons = int(self._num_photon_factor * rho_inv * weight * dl)
                 total_number_photons += num_photons
 
-                # get the energies for all radiated photons
                 if num_photons > 0:
-                    crit_e = self._crit_e_factor * rho_inv
-                    energies = self._spectrum.random(crit_e, num_photons,
-                                                     self._energy_cutoff)
 
-                    # write photons into the event file
-                    if len(energies) > 0:
-                        vx = -cx_s*step.s0ip + cx_c*(step.x+xs)
-                        vy = step.y+ys
-                        vz = -cx_c*step.s0ip - cx_s*(step.x+xs)
-                        px = cx_s*(step.s0ip-step.ds) + cx_c*step.xp*step.ds
-                        py = step.yp*step.ds
-                        pz = cx_c*(step.s0ip-step.ds) - cx_s*step.xp*step.ds
-                        norm = 1.0/math.sqrt(px**2 + py**2 + pz**2)
-                        evt = hepevt.event(vx, vy, vz)
-                        for e in energies:
-                            evt.add(px*e*norm, py*e*norm, pz*e*norm)
+                    # calculate critical energy
+                    crit_e = self._crit_e_factor * rho_inv
+
+                    # calculate vertex and momentum
+                    vx = -cx_s*step.s0ip + cx_c*(step.x+xs)
+                    vy = step.y+ys
+                    vz = -cx_c*step.s0ip - cx_s*(step.x+xs)
+                    px = cx_s*(step.s0ip-step.ds) + cx_c*step.xp*step.ds
+                    py = step.yp*step.ds
+                    pz = cx_c*(step.s0ip-step.ds) - cx_s*step.xp*step.ds
+                    norm = 1.0/math.sqrt(px**2 + py**2 + pz**2)
+
+                    # if full event writing is turned on, get the energies
+                    # for all radiated photons and write them into the
+                    # event file
+                    if self._full_events:
+                        energies = self._spectrum.random(crit_e, num_photons,
+                                                         self._energy_cutoff)
+                        if len(energies) > 0:
+                            evt = hepevt.event(vx, vy, vz)
+                            for e in energies:
+                                evt.add(px*e*norm, py*e*norm, pz*e*norm)
+                            evt.commit()
+                        total_number_photons_cut += len(energies)
+                    else:
+                        evt = hepevt.event(vx, vy, vz,
+                                           num_photons=num_photons,
+                                           critical_e=crit_e)
+                        evt.add(px*norm, py*norm, pz*norm)
                         evt.commit()
-                    total_number_photons_cut += len(energies)
 
                 ys += ystep
             xs += xstep
