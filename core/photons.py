@@ -150,13 +150,18 @@ class Photons():
                     # calculate critical energy
                     crit_e = self._crit_e_factor * rho_inv
 
-                    # calculate vertex and momentum
+                    # calculate vertex
                     vx = -cx_s*step.s0ip + cx_c*(step.x+xs)
                     vy = step.y+ys
                     vz = -cx_c*step.s0ip - cx_s*(step.x+xs)
-                    px = cx_s*(step.s0ip-step.ds) + cx_c*step.xp*step.ds
-                    py = step.yp*step.ds
-                    pz = cx_c*(step.s0ip-step.ds) - cx_s*step.xp*step.ds
+
+                    # calculate momentum
+                    px_temp = step.xip + xs + (math.pi - step.xip_prime) + (ch * xs)
+                    py_temp = step.yip + ys + step.yip_prime + (cv * ys)
+                    pz_temp = 1.0
+                    px = (cx_c*px_temp) + (cx_s*pz_temp)
+                    py = py_temp
+                    pz = (cx_c*pz_temp) - (cx_s*px_temp)
                     norm = 1.0/math.sqrt(px**2 + py**2 + pz**2)
 
                     # if full event writing is turned on, get the energies

@@ -29,6 +29,8 @@ class Orbit():
                     dl=settings['step_size'],
                     xp=-settings['offset']['angle'],
                     yp=0.0,
+                    xip=settings['offset']['position'],
+                    yip=0.0,
                     xip_prime=math.pi + settings['offset']['angle'],
                     yip_prime=0.0)
 
@@ -129,6 +131,8 @@ class Orbit():
             step.dl = step.ds * (1.0 + (step.gh * step.x))
 
         # calculate the deviation from the ideal orbit
+        step.xip += step.dl * math.sin(step.xip_prime)
+        step.yip += step.dl * step.yip_prime
         step.x += step.dl * step.xp
         step.y += step.dl * step.yip_prime
         step.xip_prime += step.gh * step.dl
