@@ -34,6 +34,10 @@ class Photons():
             self._region_left = settings['region']['range'][1]
             self._region_right = settings['region']['range'][0]
 
+        self._target_zone_enabled = settings['target_zone']['enabled']
+        self._target_zone_radius = settings['target_zone']['radius']
+        self._target_zone_boundary = settings['target_zone']['boundary']
+
         # create synchrotron radiation power spectrum PDF
         self._spectrum = Spectrum()
         self._spectrum.initialize(settings['spectrum']['resolution'],
@@ -90,6 +94,40 @@ class Photons():
 
     def write_spectrum(self, output):
         self._spectrum.write(output)
+
+
+    def _intersect_target_zone(self, vertex, direction):
+        """
+        Target zone is an z-axis aligned cylinder with an inner and an outer
+        radius and a lower and upper boundary. This code intersects a line with
+        the cylinder, not a ray! That's ok for the SyncRad Generator, as this
+        shouldn't introduce too many false intersections as long as the generation
+        is done in a way such that the photons travel towards the IP.
+        """
+
+        # calculate slopes
+        if math.fabs(direction[2]) > 0.0000000001:
+            slope_xz = direction[0] / direction[2]
+            slope_yz = direction[1] / direction[2]
+        else:
+            slope_xz = 0.0
+            slope_yz = 0.0
+
+        # calculate the distance from the z-axis (radius) that the ray has at the
+        # lower and upper z-boundary of the cylinder.
+        def calc_radius2(boundary):
+            x_b = slope_xz*(boundary-vertex[2]) + vertex[0]
+            y_b = slope_yz*(boundary-vertex[2]) + vertex[1]
+            return x_b**2 + y_b**2
+
+        r_low = calc_radius2(self._target_zone_boundary[0])
+        r_up  = calc_radius2(self._target_zone_boundary[1])
+
+        # since it is a z-axis aligned cylinder, the x value can simply be compared
+        # to the cylinder radii, in order to check for the intersection of the ray.
+        radius2 = [self._target_zone_radius[0]**2, self._target_zone_radius[1]**2]
+        return ((r_low < radius2[1]) and (r_up  > radius2[0])) or \
+               ((r_up  < radius2[1]) and (r_low > radius2[0]))
 
 
     def _integrate_beam(self, dl, step, beam, output, hepevt):
@@ -151,37 +189,47 @@ class Photons():
                     crit_e = self._crit_e_factor * rho_inv
 
                     # calculate vertex
-                    vx = -cx_s*step.s0ip + cx_c*(step.x+xs)
-                    vy = step.y+ys
-                    vz = -cx_c*step.s0ip - cx_s*(step.x+xs)
+                    vx = (cx_c*(step.x+xs)) - (cx_s*step.s0ip)
+                    vy = -(step.y+ys)
+                    vz = -(cx_c*step.s0ip) - (cx_s*(step.x+xs))
 
                     # calculate momentum
                     px_temp = step.xip + xs + (math.pi - step.xip_prime) + (ch * xs)
                     py_temp = step.yip + ys + step.yip_prime + (cv * ys)
-                    pz_temp = 1.0
+
+                    py_temp *= -1.0
+                    pz_temp  = -1.0
+
+                    # rotate momentum into Geant4 space
                     px = (cx_c*px_temp) + (cx_s*pz_temp)
                     py = py_temp
                     pz = (cx_c*pz_temp) - (cx_s*px_temp)
                     norm = 1.0/math.sqrt(px**2 + py**2 + pz**2)
 
-                    # if full event writing is turned on, get the energies
-                    # for all radiated photons and write them into the
-                    # event file
-                    if self._full_events:
-                        energies = self._spectrum.random(crit_e, num_photons,
-                                                         self._energy_cutoff)
-                        if len(energies) > 0:
-                            evt = hepevt.event(vx, vy, vz)
-                            for e in energies:
-                                evt.add(px*e*norm, py*e*norm, pz*e*norm)
+                    # if the target zone feature is on, only write events if
+                    # the photons will hit the zone.
+                    if (not self._target_zone_enabled) or \
+                       (self._target_zone_enabled and \
+                        self._intersect_target_zone([vx, vy, vz], [px, py, pz])):
+
+                        # if full event writing is turned on, get the energies
+                        # for all radiated photons and write them into the
+                        # event file
+                        if self._full_events:
+                            energies = self._spectrum.random(crit_e, num_photons,
+                                                             self._energy_cutoff)
+                            if len(energies) > 0:
+                                evt = hepevt.event(vx, vy, vz)
+                                for e in energies:
+                                    evt.add(px*e*norm, py*e*norm, pz*e*norm)
+                                evt.commit()
+                            total_number_photons_cut += len(energies)
+                        else:
+                            evt = hepevt.event(vx, vy, vz,
+                                               num_photons=num_photons,
+                                               critical_e=crit_e)
+                            evt.add(px*norm, py*norm, pz*norm)
                             evt.commit()
-                        total_number_photons_cut += len(energies)
-                    else:
-                        evt = hepevt.event(vx, vy, vz,
-                                           num_photons=num_photons,
-                                           critical_e=crit_e)
-                        evt.add(px*norm, py*norm, pz*norm)
-                        evt.commit()
 
                 ys += ystep
             xs += xstep
