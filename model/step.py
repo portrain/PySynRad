@@ -5,7 +5,8 @@ class Step(object):
 
     def __init__(self, lattice,
                        s0ip=0.0, ds=0.0, s0ip_prime=0.0,
-                       x=0.0, y=0.0, dl=0.0, xp=0.0, yp=0.0, xip=0.0, yip=0.0,
+                       x=0.0, y=0.0, dl=0.0, xp=0.0, yp=0.0,
+                       xip=0.0, yip=0.0, z_ip=0.0,
                        xip_prime=0.0, yip_prime=0.0):
         # ideal central orbit
         self.s0ip = s0ip # ideal s position 
@@ -20,6 +21,7 @@ class Step(object):
         self.yp = yp
         self.xip = x
         self.yip = 0.0
+        self.zip = z_ip
         self.xip_prime = xip_prime # actual orbit angles
         self.yip_prime = yip_prime
 

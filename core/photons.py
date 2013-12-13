@@ -123,7 +123,7 @@ class Photons():
         r_low = calc_radius2(self._target_zone_boundary[0])
         r_up  = calc_radius2(self._target_zone_boundary[1])
 
-        # since it is a z-axis aligned cylinder, the x value can simply be compared
+        # since it is a z-axis aligned cylinder, the radius can simply be compared
         # to the cylinder radii, in order to check for the intersection of the ray.
         radius2 = [self._target_zone_radius[0]**2, self._target_zone_radius[1]**2]
         return ((r_low < radius2[1]) and (r_up  > radius2[0])) or \
@@ -189,13 +189,13 @@ class Photons():
                     crit_e = self._crit_e_factor * rho_inv
 
                     # calculate vertex
-                    vx = (cx_c*(step.x+xs)) - (cx_s*step.s0ip)
-                    vy = -(step.y+ys)
-                    vz = -(cx_c*step.s0ip) - (cx_s*(step.x+xs))
+                    vx = (cx_c*(step.xip+xs)) - (cx_s*step.zip)
+                    vy = -(step.yip+ys)
+                    vz = -(cx_c*step.zip) - (cx_s*(step.xip+xs))
 
                     # calculate momentum
-                    px_temp = step.xip + xs + (math.pi - step.xip_prime) + (ch * xs)
-                    py_temp = step.yip + ys + step.yip_prime + (cv * ys)
+                    px_temp = (math.pi - step.xip_prime) + (ch * xs)
+                    py_temp = step.yip_prime + (cv * ys)
 
                     py_temp *= -1.0
                     pz_temp  = -1.0
