@@ -189,16 +189,14 @@ class Photons():
                     crit_e = self._crit_e_factor * rho_inv
 
                     # calculate vertex
-                    vx = (cx_c*(step.xip+xs)) - (cx_s*step.zip)
-                    vy = -(step.yip+ys)
-                    vz = -(cx_c*step.zip) - (cx_s*(step.xip+xs))
+                    vx = (cx_c*(step.xip+xs)) + (cx_s*step.zip)
+                    vy = step.yip+ys
+                    vz = (cx_c*step.zip) - (cx_s*(step.xip+xs))
 
                     # calculate momentum
-                    px_temp = (math.pi - step.xip_prime) + (ch * xs)
-                    py_temp = step.yip_prime + (cv * ys)
-
-                    py_temp *= -1.0
-                    pz_temp  = -1.0
+                    px_temp = -step.zip * ((math.pi - step.xip_prime) + (ch * xs))
+                    py_temp = -step.zip * (step.yip_prime + (cv * ys))
+                    pz_temp = -step.zip
 
                     # rotate momentum into Geant4 space
                     px = (cx_c*px_temp) + (cx_s*pz_temp)
